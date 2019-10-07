@@ -12,6 +12,7 @@ from kivy.uix.image import Image
 from kivy.uix.button import Button
 from kivy.animation import Animation
 from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.core.audio.audio_sdl2 import SoundSDL2
 
 import random
 
@@ -29,6 +30,14 @@ class Game(Widget):
         self.enemy_size = (self.win_w * .06, self.win_h * .05)
         self.life_size = (self.win_w * .035, self.win_h * .035)
 
+        self.sounds = {
+            'fire': SoundSDL2(source='assets/fire.wav'),
+            'player_death': SoundSDL2(source='assets/player_death.wav'),
+            'foe_death': SoundSDL2(source='assets/foe_death.wav'),
+            'theme': SoundSDL2(source='assets/theme.mp3'),
+            'gameover': SoundSDL2(source='assets/gameover.mp3')
+        }
+
         self.player_init = (self.win_w / 2 - 25, self.win_h / 6)
 
         self.pressed = set()
@@ -40,6 +49,7 @@ class Game(Widget):
         self.move_speed = (self.win_w * self.win_h) * .001
         self.kill_count = 1
         self.dead = False
+        self.sounds['theme'].play()
 
         self.groups = {
             'foes': InstructionGroup(),
@@ -98,6 +108,9 @@ class Game(Widget):
 
     def fire(self):
         self.firing = True
+        self.sounds['fire'].volume = .1
+        self.sounds['fire'].play()
+
         self.groups['bullets'].add(Rectangle(pos=(self.player.pos[0] + self.player_size[0] / 2.2, self.player.pos[1] + self.player.size[1]), size=self.fire_size))
         Clock.schedule_once(self.stop_firing, .1)
 
@@ -109,6 +122,7 @@ class Game(Widget):
     def restore(self, btn=None):
         self.life_count = 3
         self.kill_count = 0
+        self.sounds['theme'].play()
         for x in range(self.life_count):
             if len(self.get_children('lifes')) < self.life_count:
                 if len(self.get_children('lifes')) == 0:
@@ -157,10 +171,17 @@ class Game(Widget):
 
         if manager.current == 'Game' and len(self.get_children('lifes')) > 0:
 
+            posx = 0
+            posy = 0
+
             if 'right' in self.pressed:
                 posx = speed
             if 'left' in self.pressed:
                 posx -= speed
+            if 'up' in self.pressed:
+                posy += speed
+            if 'down' in self.pressed:
+                posy -= speed
 
             if player_x + player_w + posx > self.win_w or player_x + posx < 0:
                 posx = 0
@@ -191,6 +212,9 @@ class Game(Widget):
                         if len(self.deads) > 0:
                             Clock.schedule_once(self.remove_explosion, .4)
 
+                        self.sounds['foe_death'].volume = .1
+                        self.sounds['foe_death'].play()
+
                         self.groups['foes'].remove(enemy)
                         self.groups['bullets'].remove(fire)
 
@@ -198,8 +222,13 @@ class Game(Widget):
                     self.groups['bullets'].remove(fire)
 
             self.player.pos = (player_x + posx, player_y)
+
+            if self.sounds['theme'].state != 'play':
+                self.sounds['theme'].play()
+
         else:
             #self.canvas.clear()
+            self.dead = True
             self.groups['foes'].clear()
             self.groups['bullets'].clear()
             manager.last_score = 'Your score: ' + str(self.kill_count)
@@ -207,11 +236,17 @@ class Game(Widget):
             self.kill_lbl.text = 'Score: 0'
 
             if len(self.get_children('lifes')) == 0:
+                if manager.current == 'Game':
+                   self.sounds['player_death'].play()
+                   
+                #self.sounds['gameover'].play()
+                self.sounds['theme'].stop()
                 manager.current = 'GameOver'
 
 
 class Start(Widget):
     pass
+
 
 class GameOver(Widget):
     pass
@@ -227,8 +262,6 @@ manager = ScreenManager()
 class MainApp(App):
     def build(self):
         self.window_size = Window.size
-
-
 
         self.manager = manager
 
