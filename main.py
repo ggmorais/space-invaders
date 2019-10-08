@@ -45,17 +45,21 @@ class Game(Widget):
         self.fires = []
         self.enemies = []
         self.lifes = []
+        self.buttons = []
         self.deads = []
         self.move_speed = (self.win_w * self.win_h) * .001
         self.kill_count = 1
         self.dead = False
+
         self.sounds['theme'].play()
+
 
         self.groups = {
             'foes': InstructionGroup(),
             'bullets': InstructionGroup(),
             'lifes': InstructionGroup(),
-            'explosions': InstructionGroup()
+            'explosions': InstructionGroup(),
+            'buttons': InstructionGroup()
         }
 
         self.groups['bullets'].add(Color(0, .7, 1))
@@ -74,11 +78,25 @@ class Game(Widget):
 
         self.restore()
 
-        self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
-        self._keyboard.bind(on_key_down=self._keyboard_down)
-        self._keyboard.bind(on_key_up=self._keyboard_up)
-
         Clock.schedule_interval(self.start, 0)
+
+    def controller(self, method):
+        if method == 'keyboard':
+            self.method = method
+            self._keyboard = Window.request_keyboard(self._keyboard_closed, self)
+            self._keyboard.bind(on_key_down=self._keyboard_down)
+            self._keyboard.bind(on_key_up=self._keyboard_up)
+        elif method == 'buttons':
+            self.method = method
+            self.buttons = [
+                Button(text='Left', pos=(self.win_w - (self.win_w * .03) - (self.win_w * .1) * 2.1, self.win_h * .1), size=(self.win_w * .1, self.win_h * .1), id='left'),
+                Button(text='Right', pos=(self.win_w - (self.win_w * .03) - self.win_w * .1, self.win_h * .1), size=(self.win_w * .1, self.win_h * .1), id='right'),
+                Button(text='Fire', pos=(self.win_w * .03, self.win_h * .1), size=(self.win_w * .1, self.win_h * .1), id='spacebar')
+            ]
+
+            for btn in self.buttons:
+                btn.bind(state=self._key_press)
+                self.add_widget(btn)
 
     def _keyboard_closed(self):
         self._keyboard.unbind(on_key_down=self._keyboard_down)
@@ -91,6 +109,13 @@ class Game(Widget):
     def _keyboard_up(self, keyboard, keycode):
         if keycode[1] in self.pressed:
             self.pressed.remove(keycode[1])
+
+    def _key_press(self, btn, state=None):
+        if btn.id in self.pressed:
+            self.pressed.remove(btn.id)
+        else:
+            self.pressed.add(btn.id)
+
 
     def remove_obj(self, obj):
         self.canvas.remove(obj)
@@ -231,7 +256,9 @@ class Game(Widget):
             self.dead = True
             self.groups['foes'].clear()
             self.groups['bullets'].clear()
+
             manager.last_score = 'Your score: ' + str(self.kill_count)
+
             self.kill_count = 0
             self.kill_lbl.text = 'Score: 0'
 
@@ -256,6 +283,7 @@ class GameOver(Widget):
         manager.current = 'Game'
 
 game = Game()
+game.controller('keyboard')
 
 manager = ScreenManager()
 
